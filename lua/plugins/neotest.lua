@@ -6,8 +6,7 @@ return {
       "nvim-lua/plenary.nvim",
       "antoinemadec/FixCursorHold.nvim",
       "nvim-treesitter/nvim-treesitter",
-      -- Use a fork that better supports Docker
-      { "olimorris/neotest-rspec", branch = "main" },
+      "olimorris/neotest-rspec",
     },
     keys = {
       {
@@ -87,14 +86,14 @@ return {
         },
 
         -- Custom icons for visual feedback
-        icons = {
-          passed = "P",
-          failed = "F",
-          running = "R",
-          skipped = "S",
-          unknown = "U",
-        },
-
+        -- icons = {
+        --   passed = "P",
+        --   failed = "F",
+        --   running = "R",
+        --   skipped = "S",
+        --   unknown = "U",
+        -- },
+        --
         -- Adapter configuration
         adapters = {
           require("neotest-rspec")({
@@ -108,10 +107,6 @@ return {
                 "bundle",
                 "exec",
                 "rspec",
-                "--format",
-                "json",
-                "--out",
-                "/tmp/rspec-neotest.json",
               }
             end,
 
