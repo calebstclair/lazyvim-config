@@ -9,6 +9,9 @@ return {
       "olimorris/neotest-rspec",
     },
     opts = {
+      consumers = {
+        overseer = require("neotest.consumers.overseer"),
+      },
       adapters = {
         ["neotest-rspec"] = {
           rspec_cmd = function(test_args)
@@ -20,13 +23,14 @@ return {
               "docker",
               "compose",
               "exec",
-              "-T",
               "-e",
               "RAILS_ENV=test",
               "web",
               "bundle",
               "exec",
               "rspec",
+              "--format",
+              "progress",
               "--format",
               "json",
               "--out",
