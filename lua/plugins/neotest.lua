@@ -11,10 +11,10 @@ return {
     opts = {
       adapters = {
         ["neotest-rspec"] = {
-          -- Command to run RSpec inside Docker
           rspec_cmd = function(test_args)
             local pid = vim.fn.getpid()
-            local results_file = "/Navis/tmp/rspec-" .. pid .. ".json"
+            local project_root = "/Navis"
+            local results_file = project_root .. "/tmp/rspec-" .. pid .. ".json"
 
             local cmd = {
               "docker",
@@ -27,42 +27,46 @@ return {
               "bundle",
               "exec",
               "rspec",
+              "--format",
+              "json",
               "--out",
               results_file,
             }
 
-            -- Append test files/lines if provided
             if test_args then
               if type(test_args) == "string" then
                 test_args = { test_args }
               end
               for _, arg in ipairs(test_args) do
-                -- Convert host absolute path to container path
-                local cwd = vim.fn.getcwd()
-                local relative = arg:gsub("^" .. vim.pesc(cwd), "")
-                if string.sub(relative, 1, 1) == "/" then
-                  relative = string.sub(relative, 2)
+                if arg == "namespace" or arg == "file" then
+                  arg = vim.api.nvim_buf_get_name(0)
                 end
-                table.insert(cmd, "/Navis/" .. relative)
+
+                local abs = vim.fn.fnamemodify(arg, ":p")
+
+                if not vim.fn.filereadable(abs) then
+                  abs = vim.api.nvim_buf_get_name(0)
+                end
+
+                local cwd = vim.fn.getcwd()
+                local relative = abs:gsub("^" .. vim.pesc(cwd) .. "/", "")
+                table.insert(cmd, project_root .. "/" .. relative)
               end
             end
 
+            print("🐳 Neotest RSpec CMD:\n" .. table.concat(cmd, " "))
             return cmd
           end,
 
-          -- Transform host paths to container relative paths
           transform_spec_path = function(path)
             local cwd = vim.fn.getcwd()
-            local relative = path:gsub("^" .. vim.pesc(cwd), "")
-            if string.sub(relative, 1, 1) == "/" then
-              relative = string.sub(relative, 2)
-            end
+            local relative = path:gsub("^" .. vim.pesc(cwd) .. "/", "")
             return relative
           end,
 
-          -- JSON results file path
+          -- Host path (for Neotest to read)
           results_path = function()
-            return "/Navis/tmp/rspec-" .. vim.fn.getpid() .. ".json"
+            return vim.fn.getcwd() .. "/tmp/rspec-" .. vim.fn.getpid() .. ".json"
           end,
 
           formatter = "json",
