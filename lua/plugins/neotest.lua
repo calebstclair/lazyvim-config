@@ -43,16 +43,18 @@ return {
               test_args = { test_args }
             end
 
+            print(table.concat(test_args, ", "))
+
             -- Detect suite runs: <leader>tT (no args, or just placeholders)
             local is_suite = (#test_args == 0)
               or (#test_args == 1 and (test_args[1] == "file" or test_args[1] == "dir" or test_args[1] == "namespace"))
 
-            if is_suite then
+            if test_args[1] == "dir" then
               -- Run the entire suite
               table.insert(cmd, project_root .. "/spec")
             else
               for _, arg in ipairs(test_args) do
-                if arg == "file" or arg == "dir" or arg == "namespace" then
+                if arg == "file" or arg == "namespace" then
                   arg = vim.api.nvim_buf_get_name(0)
                 end
 
