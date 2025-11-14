@@ -43,12 +43,6 @@ return {
               test_args = { test_args }
             end
 
-            print(table.concat(test_args, ", "))
-
-            -- Detect suite runs: <leader>tT (no args, or just placeholders)
-            local is_suite = (#test_args == 0)
-              or (#test_args == 1 and (test_args[1] == "file" or test_args[1] == "dir" or test_args[1] == "namespace"))
-
             if test_args[1] == "dir" then
               -- Run the entire suite
               table.insert(cmd, project_root .. "/spec")
@@ -87,14 +81,6 @@ return {
           formatter = "json",
         },
       },
-
-      -- UI features
-      status = { enabled = true, virtual_text = true, signs = true },
-      output = { enabled = true, open_on_run = "short" },
-      output_panel = { enabled = true, open = "botright split | resize 15" },
-      quickfix = { enabled = true, open = false },
-      running = { concurrent = false },
-      diagnostic = { enabled = true, severity = vim.diagnostic.severity.ERROR },
     },
   },
 }
