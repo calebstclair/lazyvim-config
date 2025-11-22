@@ -1,10 +1,30 @@
 return {
+  -- Keep LazyVim's dart LSP
+  {
+    "neovim/nvim-lspconfig",
+    opts = {
+      servers = {
+        dartls = {},
+      },
+    },
+  },
+
+  -- Add flutter-tools only
   {
     "akinsho/flutter-tools.nvim",
-    dependencies = { "nvim-lua/plenary.nvim" },
-    config = true, -- Auto-configures the plugin
+    lazy = false,
+    dependencies = {
+      "nvim-lua/plenary.nvim",
+      "stevearc/dressing.nvim",
+    },
+    config = function()
+      require("flutter-tools").setup({
+        lsp = {
+          on_attach = function(client, bufnr)
+            -- use LazyVim defaults
+          end,
+        },
+      })
+    end,
   },
-  { "dart-lang/dart-vim-plugin" }, -- Syntax highlighting and other Dart-specific features
-  -- You might also want to add nvim-treesitter for enhanced syntax parsing
-  -- { "nvim-treesitter/nvim-treesitter", build = ":TSUpdate" },
 }
