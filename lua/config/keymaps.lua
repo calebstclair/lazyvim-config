@@ -14,3 +14,22 @@ vim.keymap.set("n", "<leader>yc", function()
     vim.notify("No diagnostic on this line")
   end
 end, { desc = "Copy diagnostic under cursor" })
+
+-- Make deletes not affect yank register
+local map = vim.keymap.set
+local opts = { noremap = true, silent = true }
+
+-- Normal-mode delete operations → black hole
+map("n", "d", '"_d', opts)
+map("n", "D", '"_D', opts)
+map("n", "x", '"_x', opts)
+map("n", "X", '"_X', opts)
+
+-- Change operations (optional — include if you want these too)
+map("n", "c", '"_c', opts)
+map("n", "C", '"_C', opts)
+
+-- Insert/Visual mode variants
+map("v", "d", '"_d', opts)
+map("v", "c", '"_c', opts)
+map("v", "x", '"_x', opts)
