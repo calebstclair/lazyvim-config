@@ -15,21 +15,39 @@ vim.keymap.set("n", "<leader>yc", function()
   end
 end, { desc = "Copy diagnostic under cursor" })
 
--- Make deletes not affect yank register
 local map = vim.keymap.set
 local opts = { noremap = true, silent = true }
+
+-- ============================
+-- Black-hole deletes (default)
+-- ============================
 
 -- Normal-mode delete operations → black hole
 map("n", "d", '"_d', opts)
 map("n", "D", '"_D', opts)
 map("n", "x", '"_x', opts)
 map("n", "X", '"_X', opts)
-
--- Change operations (optional — include if you want these too)
 map("n", "c", '"_c', opts)
 map("n", "C", '"_C', opts)
 
--- Insert/Visual mode variants
+-- Visual-mode delete/change → black hole
 map("v", "d", '"_d', opts)
 map("v", "c", '"_c', opts)
 map("v", "x", '"_x', opts)
+
+-- ============================
+-- System clipboard cut with 'y' prefix
+-- ============================
+
+-- Normal-mode cuts
+map("n", "yd", '"+d', opts)
+map("n", "yD", '"+D', opts)
+map("n", "yx", '"+x', opts)
+map("n", "yX", '"+X', opts)
+map("n", "yc", '"+c', opts)
+map("n", "yC", '"+C', opts)
+
+-- Visual-mode cuts
+map("v", "yd", '"+d', opts)
+map("v", "yx", '"+x', opts)
+map("v", "yc", '"+c', opts)
