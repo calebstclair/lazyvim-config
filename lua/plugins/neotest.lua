@@ -1,120 +1,119 @@
-local function ensure_web_running()
-  local h = io.popen("docker compose ps -q web 2>/dev/null")
-  local out = h and h:read("*a") or ""
-  if h then
-    h:close()
-  end
-
-  if out == "" then
-    vim.notify("Starting docker compose service: web…", vim.log.levels.INFO)
-    os.execute("docker compose up -d web >/dev/null 2>&1")
-    vim.uv.sleep(1500)
-  end
-end
-
 return {
   {
     "nvim-neotest/neotest",
     dependencies = {
       "nvim-neotest/nvim-nio",
       "nvim-lua/plenary.nvim",
+      "antoinemadec/FixCursorHold.nvim",
       "nvim-treesitter/nvim-treesitter",
       "olimorris/neotest-rspec",
     },
+    opts = {
+      adapters = {
+        ["neotest-rspec"] = {
+          rspec_cmd = function(test_args)
+            local pid = vim.fn.getpid()
+            local project_root = "/Navis"
+            local results_file = project_root .. "/tmp/rspec-" .. pid .. ".json"
 
-    opts = function()
-      return {
-        adapters = {
-          require("neotest-rspec")({
-            ---------------------------------------------------
-            -- Run all RSpec inside docker compose exec web
-            ---------------------------------------------------
-            rspec_cmd = function()
-              ensure_web_running()
+            -- Detect whether this is a single-test run or multi-test run
+            -- A single test is when a test has a line number (file.rb:123)
+            local function is_single_test(args)
+              if not args then
+                return false
+              end
+              if type(args) == "string" then
+                return args:match(":%d+$") ~= nil
+              end
+              for _, a in ipairs(args) do
+                if type(a) == "string" and a:match(":%d+$") then
+                  return true
+                end
+              end
+              return false
+            end
 
-              return {
-                "docker",
-                "compose",
-                "exec",
-                "-T",
-                "web",
-                "bundle",
-                "exec",
-                "rspec",
-                "--format",
-                "documentation",
-                "--format",
-                "json",
-                "--out",
-                "tmp/rspec.output",
-              }
-            end,
+            local use_parallel = not is_single_test(test_args)
 
-            ---------------------------------------------------
-            -- Fix file paths so rspec sees valid paths
-            ---------------------------------------------------
-            transform_spec_path = function(path)
-              local root = require("neotest-rspec").root(path)
-              return root and path:sub(#root + 2) or path
-            end,
-
-            results_path = "tmp/rspec.output",
-          }),
-        },
-      }
-    end,
-
-    -----------------------------------------------------------
-    -- Keymaps (only additions—LazyVim already sets neotest defaults)
-    -----------------------------------------------------------
-    keys = {
-      -------------------------------------------------------------------
-      -- Parallel RSpec
-      -- <leader>tP => parallel_rspec inside docker, results fed to neotest
-      -------------------------------------------------------------------
-      {
-        "<leader>tP",
-        function()
-          ensure_web_running()
-
-          vim.notify("Running parallel_rspec inside docker…", vim.log.levels.INFO)
-
-          -- Open a terminal pane
-          vim.cmd("botright split | resize 15")
-          local buf = vim.api.nvim_create_buf(false, true)
-          vim.api.nvim_win_set_buf(0, buf)
-
-          -- Run parallel tests
-          vim.fn.termopen(
-            [[docker compose exec -T web bash -c "
-              rm -f tmp/parallel_rspec.json &&
-              parallel_rspec spec/
-            "]],
-            {
-              on_exit = function(_, code)
-                vim.schedule(function()
-                  if code == 0 then
-                    vim.notify("Parallel tests passed ✓", vim.log.levels.INFO)
-                  else
-                    vim.notify("Parallel tests failed ✗", vim.log.levels.ERROR)
-                  end
-
-                  os.execute("docker compose exec -T web cp tmp/parallel_rspec.json tmp/rspec.output")
-                  require("neotest").summary.open()
-                end)
-              end,
+            local cmd = {
+              "docker",
+              "compose",
+              "exec",
+              "-e",
+              "RAILS_ENV=test",
+              "web",
+              "bundle",
+              "exec",
             }
-          )
-        end,
-        desc = "Run parallel_rspec in docker",
+
+            if use_parallel then
+              -- parallel_tests invocation
+              vim.list_extend(cmd, {
+                "parallel_rspec",
+                "--serialize-stdout",
+                "--combine-stderr",
+                "--", -- End parallel_rspec args, begin rspec args
+              })
+            else
+              -- normal rspec for single examples
+              vim.list_extend(cmd, { "rspec" })
+            end
+
+            -- RSpec formatters for Neotest
+            vim.list_extend(cmd, {
+              "--format",
+              "progress",
+              "--format",
+              "json",
+              "--out",
+              results_file,
+            })
+
+            if not test_args then
+              test_args = {}
+            elseif type(test_args) == "string" then
+              test_args = { test_args }
+            end
+
+            -- If running an entire directory
+            if test_args[1] == "dir" then
+              table.insert(cmd, project_root .. "/spec")
+            else
+              -- Normalize test paths
+              for _, arg in ipairs(test_args) do
+                if arg == "file" or arg == "namespace" then
+                  arg = vim.api.nvim_buf_get_name(0)
+                end
+
+                local abs = vim.fn.fnamemodify(arg, ":p")
+                if vim.fn.filereadable(abs) == 0 and vim.fn.isdirectory(abs) == 0 then
+                  abs = vim.api.nvim_buf_get_name(0)
+                end
+
+                local cwd = vim.fn.getcwd()
+                local relative = abs:gsub("^" .. vim.pesc(cwd) .. "/", "")
+                table.insert(cmd, project_root .. "/" .. relative)
+              end
+            end
+
+            print("🐳 Neotest RSpec CMD:\n" .. table.concat(cmd, " "))
+            return cmd
+          end,
+
+          transform_spec_path = function(path)
+            local cwd = vim.fn.getcwd()
+            local relative = path:gsub("^" .. vim.pesc(cwd) .. "/", "")
+            return relative
+          end,
+
+          -- Host path so Neotest can read results
+          results_path = function()
+            return vim.fn.getcwd() .. "/tmp/rspec-" .. vim.fn.getpid() .. ".json"
+          end,
+
+          formatter = "json",
+        },
       },
     },
-
-    -----------------------------------------------------------
-    -- Apply configuration
-    -----------------------------------------------------------
-    config = function(_, opts)
-      require("neotest").setup(opts)
-    end,
   },
 }
